@@ -1,0 +1,145 @@
+local init_data = {}
+local callbacks = {}
+
+function send_ksp_http(cmd)
+	url = init_data.ksp_server .. "/telemachus/datalink?" .. cmd
+	-- print(url)
+	return http.request(url)
+end
+
+function update_redstone_callbacks()
+	for i,entry in pairs(callbacks) do
+		entry.val = get_current_value(entry.side, entry.color)
+		if entry.val ~= entry.lastval then
+			entry.callback(entry)
+		end
+		entry.lastval = entry.val
+	end
+end
+
+function get_current_value(side, color)
+	if color then
+		all_active_colors = redstone.getBundledInput(side)
+		return colors.test(all_active_colors, color)
+	else
+		return rs.getInput(side)		
+	end
+end
+
+-- http://computercraft.info/wiki/Colors_(API)
+-- register a callback that is called when the given input CHANGES
+function register_callback(side, color, callback, userdata)
+	-- print("registering " .. side .. "/" .. color)
+	entry = {}
+	entry["side"] = side
+	entry["color"] = color
+	entry["callback"] = callback
+	entry["userdata"] = userdata
+	
+	entry["lastval"] = get_current_value(side, color)
+	entry["val"] = entry.lastval
+	
+	table.insert(callbacks, entry)
+end
+
+function build_ksp_vector6(x,y,z)
+	return "["..x..","..y..","..z..",0,0,0]"
+end
+
+function on_toggle_change(entry)
+	toggle_entry = entry.userdata
+	print("t:(v=" .. (entry.val and "1" or "0") .. "):" .. toggle_entry.desc)
+	
+	if entry.val and toggle_entry.callback then
+		toggle_entry.callback()
+		return
+	end
+	
+	if entry.val then
+		cmd = toggle_entry.oncmd
+	else
+		cmd = toggle_entry.offcmd
+	end
+
+	if cmd then
+		kspcmd = "ret=" .. cmd
+		send_ksp_http(kspcmd)
+	end
+end
+
+-- TODO: this won't work well if two people stand on two different pressure
+-- plates at once.  Make it more friendly to that, needs to add the vectors together
+function on_attitude_change(entry)
+	attitude_entry = entry.userdata
+	if attitude_entry == nil then
+		error("attitude_entry not provided to callback via userdata")
+	end
+	
+	print("a:(v=" .. (entry.val and "1" or "0") .. "):" .. attitude_entry.desc)
+	
+	fly_by_wire = false
+	cmd_vector = nil
+	
+	if entry.val then
+		fly_by_wire = true
+		cmd_vector = attitude_entry.vector
+	else
+		fly_by_wire = false
+		cmd_vector = build_ksp_vector6(0,0,0)
+	end
+	
+	fbw = fly_by_wire and "1" or "0"
+	kspcmd = "ret=v.setFbW[" .. fbw .. "]&ret2=v.setPitchYawRollXYZ" .. cmd_vector
+	send_ksp_http(kspcmd)
+end
+
+function poll_ksp_telemetry()
+	-- send_ksp_http()
+end
+
+function myerrorhandler( err )
+   print( "ERROR:" .. err )
+end
+
+function ghetto_as_hell_parse_json(json)
+    processed_data = string.gsub(string.gsub(json, "\"", ""), ":", "=")
+
+    -- not even remotely secure, never use for anything important EVAR.
+    parsed = loadstring("return " .. processed_data)()
+    return parsed
+end
+
+-- TODO: register telem HTTP requests from table
+
+function update()
+	event, p1, p2, p3, p4, p5 = os.pullEvent()
+	if event == "redstone" then
+		update_redstone_callbacks()
+	elseif event == "key" then
+		key = p1
+		print("keypress: " .. p1)
+	end
+	-- TODO: telemetry HTTP poll
+	
+	poll_ksp_telemetry()
+end
+
+function init(init_data_in)
+	init_data = init_data_in
+
+	for i,entry in pairs(init_data.attitude_entries) do 
+		register_callback("left", entry.color, on_attitude_change, entry)
+	end
+	
+	for i,entry in pairs(init_data.toggle_entries) do 
+		register_callback(entry.side, entry.color, on_toggle_change, entry)
+	end
+	
+	print("Flight computer init complete")	
+end
+
+function run()
+	while (true) do
+		xpcall( update, myerrorhandler )
+	end
+end
