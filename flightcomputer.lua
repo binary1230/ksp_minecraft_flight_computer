@@ -1,14 +1,14 @@
 -- tweakable global vars
-ksp_server = "http://10.0.0.29:8085"
 livestream_server = "rtmp://dev.magfest.net/live"
 livestream_name = "test"
 
-webstream = peripheral.wrap("back")
-monitor = peripheral.wrap( "right" )
-
--- rest of code below
 livestream_url = "http://demo.splitmedialabs.com/VHJavaMediaSDK3/view.html?id=" .. livestream_name .. "&url=" .. livestream_server .. "&buffer=0&forceObjectEncoding=0"
 -- livestream_url = "http://output.jsbin.com/vofoyoj/1" -- video.js experimental
+-- rest of code below
+
+webstream = peripheral.wrap("back")
+monitor = peripheral.wrap("right")
+telem_monitors = {"monitor_2", "monitor_1"}
 
 if monitor then
 	monitor.setTextScale(1)
@@ -16,154 +16,108 @@ if monitor then
 	term.clear()
 end
 
-function send_ksp_cmd(cmd)
-	url = ksp_server .. "/telemachus/datalink?" .. cmd
-	-- print(url)
-	return http.request(url)
+os.loadAPI("ksp/flight/flight")
+
+function init_webscreen()
+	print("resetting display to: " .. livestream_url)
+	webstream.setUrl(livestream_url)
 end
 
-function update_callbacks()
-	for i,entry in pairs(callbacks) do
-		entry.val = get_current_value(entry.side, entry.color)
-		if entry.val ~= entry.lastval then
-			entry.callback(entry)
+function restart_computer()
+	print("restarting...")
+	os.reboot()
+end
+
+function reset_telem_monitor(name)
+	monitor_telem = peripheral.wrap(name)
+	if monitor_telem then
+		monitor_telem.setBackgroundColor(colors.black)
+		monitor_telem.setTextColor(colors.lime)
+		monitor_telem.setTextScale(2)
+	end
+end
+
+for i, monitor_name in pairs(telem_monitors) do
+	reset_telem_monitor(monitor_name)
+end
+
+function render_telem(telemetry_data)
+	for i, monitor_name in pairs(telem_monitors) do
+		monitor_telem = peripheral.wrap(monitor_name)
+		if monitor_telem then
+			y_pos = 1
+			monitor_telem.setCursorPos(1,y_pos)
+			monitor_telem.clear()
+			
+			monitor_telem.write("Telemetry: ")
+			
+			for i, entry in pairs(telemetry_data) do
+				if entry.val then
+					y_pos = y_pos + 1
+					monitor_telem.setCursorPos(1,y_pos)
+					monitor_telem.write(entry.desc .. ": " .. entry.val)
+				end
+			end
 		end
-		entry.lastval = entry.val
 	end
-end
-
-function get_current_value(side, color)
-	if color then
-		all_active_colors = redstone.getBundledInput(side)
-		return colors.test(all_active_colors, color)
-	else
-		return rs.getInput(side)		
-	end
-end
-
--- http://computercraft.info/wiki/Colors_(API)
--- register a callback that is called when the given input CHANGES
-callbacks = {}
-function register_callback(side, color, callback, userdata)
-	-- print("registering " .. side .. "/" .. color)
-	entry = {}
-	entry["side"] = side
-	entry["color"] = color
-	entry["callback"] = callback
-	entry["userdata"] = userdata
-	
-	entry["lastval"] = get_current_value(side, color)
-	entry["val"] = entry.lastval
-	
-	table.insert(callbacks, entry)
 end
 
 pitch_amount = 0.25
 roll_amount = 0.1
 yaw_amount = 0.5
 
-function build_ksp_vector6(x,y,z)
-	return "["..x..","..y..","..z..",0,0,0]"
-end
+ksp_init_data = {
+	ksp_server = "http://10.0.0.29:8085", 
+	
+	render_telem=render_telem,
+	
+	-- description, color, attitude change
+	attitude_entries = {
+		{desc="pitch+", 	color=colors.orange, 	vector=flight.build_ksp_vector6(pitch_amount, 0, 0)},
+		{desc="pitch-", 	color=colors.red, 		vector=flight.build_ksp_vector6(-pitch_amount, 0, 0)},
+		{desc="yaw+", 		color=colors.pink, 		vector=flight.build_ksp_vector6(0, yaw_amount, 0)},
+		{desc="yaw-", 		color=colors.white, 	vector=flight.build_ksp_vector6(0, -yaw_amount, 0)},
+		{desc="roll-", 		color=colors.lightBlue,	vector=flight.build_ksp_vector6(0, 0, -roll_amount)},
+		{desc="roll+", 		color=colors.lime, 		vector=flight.build_ksp_vector6(0, 0, roll_amount)},
+	},
 
-function restart_computer()
-	os.reboot()
-end
+	-- note: in Telemachus release as of 5/26/2016, staging is broken. use action group 1 instead.
+	toggle_entries = {
+		{desc="throttle", side="left", color=colors.black, offcmd="f.throttleZero", oncmd="f.throttleFull"},
+		{desc="rcs", side="left", color=colors.cyan, oncmd="f.rcs[true]", offcmd="f.rcs[false]"},
+		{desc="sas", side="left", color=colors.blue, oncmd="f.sas[true]", offcmd="f.sas[false]"},
+		{desc="stage", side="left", color=colors.brown, oncmd="f.stage", offcmd=nil},
+		{desc="gear", side="left", color=colors.yellow, oncmd="f.gear", offcmd=nil},
+		{desc="light", side="left", color=colors.green, oncmd="f.light", offcmd=nil},
+		{desc="timewarp", side="left", color=colors.lightGray, oncmd="t.timeWarp[3]", offcmd="t.timeWarp[0]"},
+		
+		{desc="restart_computer", side="bottom", color=colors.yellow, callback=restart_computer},
+		{desc="restart_webstream", side="bottom", color=colors.blue, callback=init_webscreen},
+	},
 
-function init_screen()
-	print("resetting display to: " .. livestream_url)
-	webstream.setUrl(livestream_url)
-end
-
--- description, color, attitude change
-attitude_entries = {
-	{desc="pitch+", 	color=colors.orange, 	vector=build_ksp_vector6(pitch_amount, 0, 0)},
-	{desc="pitch-", 	color=colors.red, 		vector=build_ksp_vector6(-pitch_amount, 0, 0)},
-	{desc="yaw+", 		color=colors.pink, 		vector=build_ksp_vector6(0, yaw_amount, 0)},
-	{desc="yaw-", 		color=colors.white, 	vector=build_ksp_vector6(0, -yaw_amount, 0)},
-	{desc="roll-", 		color=colors.lightBlue,	vector=build_ksp_vector6(0, 0, -roll_amount)},
-	{desc="roll+", 		color=colors.lime, 		vector=build_ksp_vector6(0, 0, roll_amount)},
+	-- things we will query FROM kerbal space program
+	telemetry_entries = {
+		{desc="Altitude", ksp_cmd="v.altitude"},
+		{desc="Surface Velocity", ksp_cmd="v.surfaceVelocity"},
+		-- p.paused
+		-- t.universalTime
+		-- v.missionTime
+		{desc="Orbital Velocity", ksp_cmd="v.orbitalVelocity"}, -- side="bottom", color=colors.brown},
+		-- o.trueAnomaly
+		-- o.sma
+		-- o.eccentricity
+		-- o.inclination
+		-- o.lan
+		-- o.argumentOfPeriapsis
+		-- o.timeOfPeriapsisPassage
+		-- v.heightFromTerrain
+	},
+	
+	telemetry_triggers = {
+		{ksp_cmd="v.altitude", side="bottom", color=colors.lime, test=function(v) return v >= 20000 end},
+		{ksp_cmd="v.altitude", side="bottom", color=colors.brown, test=function(v) return v >= 10000 end},
+	}
 }
 
--- note: in Telemachus release as of 5/26/2016, staging is broken. use action group 1 instead.
-toggle_entries = {
-	{desc="throttle", side="left", color=colors.black, offcmd="f.throttleZero", oncmd="f.throttleFull"},
-	{desc="rcs", side="left", color=colors.cyan, oncmd="f.rcs[true]", offcmd="f.rcs[false]"},
-	{desc="sas", side="left", color=colors.blue, oncmd="f.sas[true]", offcmd="f.sas[false]"},
-	{desc="stage", side="left", color=colors.brown, oncmd="f.stage", offcmd=nil},
-	{desc="gear", side="left", color=colors.yellow, oncmd="f.gear", offcmd=nil},
-	{desc="light", side="left", color=colors.green, oncmd="f.light", offcmd=nil},
-	{desc="timewarp", side="left", color=colors.lightGray, oncmd="t.timeWarp[3]", offcmd="t.timeWarp[0]"},
-	
-	{desc="restart_computer", side="bottom", color=colors.yellow, callback=restart_computer},
-	{desc="restart_webstream", side="bottom", color=colors.blue, callback=init_screen},
-}
-
-function on_toggle_change(entry)
-	toggle_entry = entry.userdata
-	print("t:(v=" .. (entry.val and "1" or "0") .. "):" .. toggle_entry.desc)
-	
-	if entry.val and toggle_entry.callback then
-		toggle_entry.callback()
-		return
-	end
-	
-	if entry.val then
-		cmd = toggle_entry.oncmd
-	else
-		cmd = toggle_entry.offcmd
-	end
-
-	if cmd then
-		kspcmd = "ret=" .. cmd
-		send_ksp_cmd(kspcmd)
-	end
-end
-
-for i,entry in pairs(toggle_entries) do 
-	register_callback(entry.side, entry.color, on_toggle_change, entry)
-end
-
--- TODO: this won't work well if two people stand on two different pressure
--- plates at once.  Make it more friendly to that, needs to add the vectors together
-function on_attitude_change(entry)
-	attitude_entry = entry.userdata
-	if attitude_entry == nil then
-		error("attitude_entry not provided to callback via userdata")
-	end
-	
-	print("a:(v=" .. (entry.val and "1" or "0") .. "):" .. attitude_entry.desc)
-	
-	fly_by_wire = false
-	cmd_vector = nil
-	
-	if entry.val then
-		fly_by_wire = true
-		cmd_vector = attitude_entry.vector
-	else
-		fly_by_wire = false
-		cmd_vector = build_ksp_vector6(0,0,0)
-	end
-	
-	fbw = fly_by_wire and "1" or "0"
-	kspcmd = "ret=v.setFbW[" .. fbw .. "]&ret2=v.setPitchYawRollXYZ" .. cmd_vector
-	send_ksp_cmd(kspcmd)
-end
-
-for i,entry in pairs(attitude_entries) do 
-	register_callback("left", entry.color, on_attitude_change, entry)
-end
-
-function myerrorhandler( err )
-   print( "ERROR:" .. err )
-end
-
-function update()
-	os.pullEvent("redstone")
-	update_callbacks()
-end
-
-print("Flight computer init complete")
-while (true) do
-	xpcall( update, myerrorhandler )
-end
+flight.init(ksp_init_data)
+flight.run()
