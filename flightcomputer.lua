@@ -8,6 +8,7 @@ livestream_url = "http://demo.splitmedialabs.com/VHJavaMediaSDK3/view.html?id=" 
 
 webstream = peripheral.wrap("back")
 monitor = peripheral.wrap("right")
+telem_monitors = {"monitor_0", "monitor_1"}
 
 if monitor then
 	monitor.setTextScale(1)
@@ -27,12 +28,47 @@ function restart_computer()
 	os.reboot()
 end
 
+function reset_telem_monitor(name)
+	monitor_telem = peripheral.wrap(name)
+	if monitor_telem then
+		monitor_telem.setBackgroundColor(colors.black)
+		monitor_telem.setTextColor(colors.lime)
+		monitor_telem.setTextScale(2)
+	end
+end
+
+for i, monitor_name in pairs(telem_monitors) do
+	reset_telem_monitor(monitor_name)
+end
+
+function render_telem(telemetry_data)
+	for i, monitor_name in pairs(telem_monitors) do
+		monitor_telem = peripheral.wrap(monitor_name)
+		if monitor_telem then
+			y_pos = 1
+			monitor_telem.setCursorPos(1,y_pos)
+			monitor_telem.clear()
+			
+			monitor_telem.write("Telemetry: ")
+			
+			for param, entry in pairs(telemetry_data) do
+				y_pos = y_pos + 1
+				monitor_telem.setCursorPos(1,y_pos)
+				monitor_telem.write(param .. ": " .. entry.val)
+			end
+		end
+	end
+end
+
 pitch_amount = 0.25
 roll_amount = 0.1
 yaw_amount = 0.5
 
 ksp_init_data = {
 	ksp_server = "http://10.0.0.29:8085", 
+	
+	render_telem=render_telem,
+	
 	-- description, color, attitude change
 	attitude_entries = {
 		{desc="pitch+", 	color=colors.orange, 	vector=flight.build_ksp_vector6(pitch_amount, 0, 0)},

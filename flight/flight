@@ -111,17 +111,13 @@ end
 
 -- TODO: register telem HTTP requests from table
 
-function update()
-	event, p1, p2, p3, p4, p5 = os.pullEvent()
-	if event == "redstone" then
-		update_redstone_callbacks()
-	elseif event == "key" then
-		key = p1
-		print("keypress: " .. p1)
-	end
-	-- TODO: telemetry HTTP poll
-	
-	poll_ksp_telemetry()
+function render_ksp_telemetry()
+	fake_data = {
+		altitude = {val=math.random(100)},
+		some_shit = {val=math.random(100)},
+	}
+	telemetry_data = fake_data -- eventually get this from KSP
+	init_data.render_telem(telemetry_data)
 end
 
 function init(init_data_in)
@@ -138,8 +134,37 @@ function init(init_data_in)
 	print("Flight computer init complete")	
 end
 
+local main_loop_timer = nil
+function start_main_loop_timer()
+	main_loop_timer = os.startTimer(0.1)
+end
+
+-- called approx once per game tick
+function update()
+	-- TODO: telemetry HTTP poll
+	poll_ksp_telemetry()
+	render_ksp_telemetry()
+end
+
+function wait_for_events()
+	event, p1, p2, p3, p4, p5 = os.pullEvent()
+	if event == "redstone" then
+		update_redstone_callbacks()
+	elseif event == "key" then
+		key = p1
+		print("keypress: " .. p1)
+	elseif event == "timer" then
+		timer = p1
+		if timer == main_loop_timer then
+			update()
+			start_main_loop_timer()
+		end
+	end
+end
+
 function run()
+	start_main_loop_timer()
 	while (true) do
-		xpcall( update, myerrorhandler )
+		xpcall( wait_for_events, myerrorhandler )
 	end
 end
