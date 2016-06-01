@@ -8,7 +8,7 @@ livestream_url = "http://demo.splitmedialabs.com/VHJavaMediaSDK3/view.html?id=" 
 
 webstream = peripheral.wrap("back")
 monitor = peripheral.wrap("right")
-telem_monitors = {"monitor_0", "monitor_1"}
+telem_monitors = {"monitor_2", "monitor_1"}
 
 if monitor then
 	monitor.setTextScale(1)
@@ -51,10 +51,12 @@ function render_telem(telemetry_data)
 			
 			monitor_telem.write("Telemetry: ")
 			
-			for param, entry in pairs(telemetry_data) do
-				y_pos = y_pos + 1
-				monitor_telem.setCursorPos(1,y_pos)
-				monitor_telem.write(param .. ": " .. entry.val)
+			for i, entry in pairs(telemetry_data) do
+				if entry.val then
+					y_pos = y_pos + 1
+					monitor_telem.setCursorPos(1,y_pos)
+					monitor_telem.write(entry.desc .. ": " .. entry.val)
+				end
 			end
 		end
 	end
@@ -95,11 +97,12 @@ ksp_init_data = {
 
 	-- things we will query FROM kerbal space program
 	telemetry_entries = {
-		{desc="v.altitude", side="bottom", color=colors.lime},
+		{desc="Altitude", ksp_cmd="v.altitude"}, --, side="bottom", color=colors.lime},
+		{desc="Surface Velocity", ksp_cmd="v.surfaceVelocity"},
 		-- p.paused
 		-- t.universalTime
 		-- v.missionTime
-		{desc="v.orbitalVelocity", side="bottom", color=colors.brown},
+		{desc="Orbital Velocity", ksp_cmd="v.orbitalVelocity"}, -- side="bottom", color=colors.brown},
 		-- o.trueAnomaly
 		-- o.sma
 		-- o.eccentricity

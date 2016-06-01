@@ -94,11 +94,20 @@ function on_attitude_change(entry)
 end
 
 function poll_ksp_telemetry()
-	-- send_ksp_http()
+	cmd = build_telem_query(init_data.telemetry_entries)
+	send_ksp_http(cmd)
 end
 
-function myerrorhandler( err )
-   print( "ERROR:" .. err )
+function build_telem_query(telem_entries)
+	query = ""
+	for i,telem_entry in pairs(telem_entries) do 
+		if query ~= "" then
+			query = query .. "&"
+		end
+		query = query .. telem_entry.short_name .. "=" .. telem_entry.ksp_cmd
+	end
+	--print(query)
+	return query
 end
 
 function ghetto_as_hell_parse_json(json)
@@ -109,15 +118,32 @@ function ghetto_as_hell_parse_json(json)
     return parsed
 end
 
--- TODO: register telem HTTP requests from table
+function process_http_response(response)
+	-- responses can contain telemetry data, or nothing.
+	-- ignore anything returned we're not actively looking for,
+	-- and update things we are in fact looking for
+	
+	-- print(response)
+	processed_data = string.gsub(string.gsub(response, "\"", ""), ":", "=")
+	-- print(processed_data)
+	http_data = ghetto_as_hell_parse_json(response)
+	
+	for i,telem_entry in pairs(init_data.telemetry_entries) do
+		for k,v in pairs(http_data) do
+			if telem_entry.short_name == k then
+				update_telem_entry(telem_entry, v)
+			end
+		end
+	end
+end
+
+function update_telem_entry(telem_entry, value)
+	telem_entry.val = value
+	-- note: do notifications / callbacks here later if we need
+end
 
 function render_ksp_telemetry()
-	fake_data = {
-		altitude = {val=math.random(100)},
-		some_shit = {val=math.random(100)},
-	}
-	telemetry_data = fake_data -- eventually get this from KSP
-	init_data.render_telem(telemetry_data)
+	init_data.render_telem(init_data.telemetry_entries)
 end
 
 function init(init_data_in)
@@ -131,6 +157,13 @@ function init(init_data_in)
 		register_callback(entry.side, entry.color, on_toggle_change, entry)
 	end
 	
+	-- because lua can't deal with periods in names like v.orbitalVelocity, assign a bunch of aliases here
+	i = 0
+	for x,entry in pairs(init_data.telemetry_entries) do 
+		entry.short_name = "a" .. i
+		i = i + 1
+	end
+	
 	print("Flight computer init complete")	
 end
 
@@ -139,9 +172,8 @@ function start_main_loop_timer()
 	main_loop_timer = os.startTimer(0.1)
 end
 
--- called approx once per game tick
+-- update() called approx once per game tick
 function update()
-	-- TODO: telemetry HTTP poll
 	poll_ksp_telemetry()
 	render_ksp_telemetry()
 end
@@ -159,7 +191,17 @@ function wait_for_events()
 			update()
 			start_main_loop_timer()
 		end
+	elseif event == "http_success" then
+		url = p1
+		handle = p2
+		response = handle.readAll()
+		handle.close()
+		process_http_response(response)
 	end
+end
+
+function myerrorhandler( err )
+   print( "ERROR:" .. err )
 end
 
 function run()
