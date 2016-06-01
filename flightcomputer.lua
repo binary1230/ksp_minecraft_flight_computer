@@ -97,7 +97,7 @@ ksp_init_data = {
 
 	-- things we will query FROM kerbal space program
 	telemetry_entries = {
-		{desc="Altitude", ksp_cmd="v.altitude"}, --, side="bottom", color=colors.lime},
+		{desc="Altitude", ksp_cmd="v.altitude"},
 		{desc="Surface Velocity", ksp_cmd="v.surfaceVelocity"},
 		-- p.paused
 		-- t.universalTime
@@ -112,9 +112,12 @@ ksp_init_data = {
 		-- o.timeOfPeriapsisPassage
 		-- v.heightFromTerrain
 	},
+	
+	telemetry_triggers = {
+		{ksp_cmd="v.altitude", side="bottom", color=colors.lime, test=function(v) return v >= 20000 end},
+		{ksp_cmd="v.altitude", side="bottom", color=colors.brown, test=function(v) return v >= 10000 end},
+	}
 }
-
----x='{"p":07,"a0":4359021.16032269,"a1":0,"a2":83.955622485256754,"a3":174.96542675733608,"a4":179.99999446691439,"a5":300821.94285912672,"a6":0.99479834572486814,"a7":0.097586067257674255,"a8":211.47561250913216,"a9":84.824449329557083,"a10":4358745.3389826063,"a11":11.50312}'
 
 flight.init(ksp_init_data)
 flight.run()

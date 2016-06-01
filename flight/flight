@@ -137,9 +137,24 @@ function process_http_response(response)
 	end
 end
 
+function set_bundled_output_color(side, color, value)
+	active_colors = redstone.getBundledOutput(side)
+	if value == true then
+		out = colors.combine(active_colors, color)
+	else
+		out = colors.subtract(active_colors, color)
+	end
+	redstone.setBundledOutput(side, out)
+end
+
 function update_telem_entry(telem_entry, value)
 	telem_entry.val = value
-	-- note: do notifications / callbacks here later if we need
+	
+	for i,trigger_entry in pairs(init_data.telemetry_triggers) do
+		if trigger_entry.ksp_cmd == telem_entry.ksp_cmd then
+			set_bundled_output_color(trigger_entry.side, trigger_entry.color, trigger_entry.test(value))
+		end
+	end
 end
 
 function render_ksp_telemetry()
