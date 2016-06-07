@@ -6,7 +6,7 @@ livestream_url = "http://demo.splitmedialabs.com/VHJavaMediaSDK3/view.html?id=" 
 -- livestream_url = "http://output.jsbin.com/vofoyoj/1" -- video.js experimental
 -- rest of code below
 
-webstream = peripheral.wrap("back")
+webstream = peripheral.wrap("WebScreen_0")
 monitor = peripheral.wrap("right")
 telem_monitors = {"monitor_2", "monitor_1"}
 
@@ -19,7 +19,8 @@ end
 os.loadAPI("ksp/flight/flight")
 
 function init_webscreen()
-	print("resetting display to: " .. livestream_url)
+	print("resetting display")
+	-- print("resetting display to: " .. livestream_url)
 	webstream.setUrl(livestream_url)
 end
 
@@ -73,12 +74,12 @@ ksp_init_data = {
 	
 	-- description, color, attitude change
 	attitude_entries = {
-		{desc="pitch+", 	color=colors.orange, 	vector=flight.build_ksp_vector6(pitch_amount, 0, 0)},
-		{desc="pitch-", 	color=colors.red, 		vector=flight.build_ksp_vector6(-pitch_amount, 0, 0)},
-		{desc="yaw+", 		color=colors.pink, 		vector=flight.build_ksp_vector6(0, yaw_amount, 0)},
-		{desc="yaw-", 		color=colors.white, 	vector=flight.build_ksp_vector6(0, -yaw_amount, 0)},
-		{desc="roll-", 		color=colors.lightBlue,	vector=flight.build_ksp_vector6(0, 0, -roll_amount)},
-		{desc="roll+", 		color=colors.lime, 		vector=flight.build_ksp_vector6(0, 0, roll_amount)},
+		{desc="pitch+", 	side="left", color=colors.orange, 	vector=flight.build_ksp_vector6(pitch_amount, 0, 0)},
+		{desc="pitch-", 	side="left", color=colors.red, 		vector=flight.build_ksp_vector6(-pitch_amount, 0, 0)},
+		{desc="yaw+", 		side="left", color=colors.pink, 		vector=flight.build_ksp_vector6(0, yaw_amount, 0)},
+		{desc="yaw-", 		side="left", color=colors.white, 	vector=flight.build_ksp_vector6(0, -yaw_amount, 0)},
+		{desc="roll-", 		side="left", color=colors.lightBlue,	vector=flight.build_ksp_vector6(0, 0, -roll_amount)},
+		{desc="roll+", 		side="left", color=colors.lime, 		vector=flight.build_ksp_vector6(0, 0, roll_amount)},
 	},
 
 	-- note: in Telemachus release as of 5/26/2016, staging is broken. use action group 1 instead.
@@ -99,10 +100,12 @@ ksp_init_data = {
 	telemetry_entries = {
 		{desc="Altitude", ksp_cmd="v.altitude"},
 		{desc="Surface Velocity", ksp_cmd="v.surfaceVelocity"},
+		{desc="Apoapsis", ksp_cmd="o.ApA"},
+		{desc="Periapsis", ksp_cmd="o.PeA"},
 		-- p.paused
 		-- t.universalTime
 		-- v.missionTime
-		{desc="Orbital Velocity", ksp_cmd="v.orbitalVelocity"}, -- side="bottom", color=colors.brown},
+		{desc="Orbital Velocity", ksp_cmd="v.orbitalVelocity"},
 		-- o.trueAnomaly
 		-- o.sma
 		-- o.eccentricity

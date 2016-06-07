@@ -165,7 +165,7 @@ function init(init_data_in)
 	init_data = init_data_in
 
 	for i,entry in pairs(init_data.attitude_entries) do 
-		register_callback("left", entry.color, on_attitude_change, entry)
+		register_callback(entry.side, entry.color, on_attitude_change, entry)
 	end
 	
 	for i,entry in pairs(init_data.toggle_entries) do 
@@ -193,13 +193,24 @@ function update()
 	render_ksp_telemetry()
 end
 
+function handle_keypress(key)
+	if key == 25 then
+		print_peripheral_names()
+	elseif key == 16 then
+		text = get_current_value("left", colors.pink) and "on" or "off"
+		print("pink: " .. text)
+	else
+		print("keypress: " .. p1)
+	end
+end
+
 function wait_for_events()
 	event, p1, p2, p3, p4, p5 = os.pullEvent()
 	if event == "redstone" then
 		update_redstone_callbacks()
 	elseif event == "key" then
 		key = p1
-		print("keypress: " .. p1)
+		handle_keypress(key)
 	elseif event == "timer" then
 		timer = p1
 		if timer == main_loop_timer then
@@ -217,6 +228,14 @@ end
 
 function myerrorhandler( err )
    print( "ERROR:" .. err )
+end
+
+function print_peripheral_names()
+	local periList = peripheral.getNames()
+	for i = 1, #periList do
+		print("peripheral names:")
+		print("- "..peripheral.getType(periList[i]).." attached as \""..periList[i].."\".")
+	end
 end
 
 function run()
