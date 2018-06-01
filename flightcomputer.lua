@@ -6,9 +6,9 @@ livestream_url = "http://demo.splitmedialabs.com/VHJavaMediaSDK3/view.html?id=" 
 -- livestream_url = "http://output.jsbin.com/vofoyoj/1" -- video.js experimental
 -- rest of code below
 
-webstream = peripheral.wrap("WebScreen_0")
+webstream = peripheral.wrap("WebScreen_1")
 monitor = peripheral.wrap("right")
-telem_monitors = {"monitor_2", "monitor_1"}
+telem_monitors = {"monitor_3", "monitor_4"}
 
 if monitor then
 	monitor.setTextScale(1)
@@ -20,7 +20,7 @@ os.loadAPI("ksp/flight/flight")
 
 function init_webscreen()
 	print("resetting display")
-	-- print("resetting display to: " .. livestream_url)
+	print("resetting display to: " .. livestream_url)
 	webstream.setUrl(livestream_url)
 end
 
@@ -102,6 +102,7 @@ ksp_init_data = {
 		{desc="Surface Velocity", ksp_cmd="v.surfaceVelocity"},
 		{desc="Apoapsis", ksp_cmd="o.ApA"},
 		{desc="Periapsis", ksp_cmd="o.PeA"},
+		{desc="Liquid Fuel", ksp_cmd="r.resource[LiquidFuel]"},
 		-- p.paused
 		-- t.universalTime
 		-- v.missionTime
@@ -117,8 +118,11 @@ ksp_init_data = {
 	},
 	
 	telemetry_triggers = {
+		-- don't use blue or yellow, we're using them for reset buttons in-game
 		{ksp_cmd="v.altitude", side="bottom", color=colors.lime, test=function(v) return v >= 20000 end},
 		{ksp_cmd="v.altitude", side="bottom", color=colors.brown, test=function(v) return v >= 10000 end},
+		{ksp_cmd="r.resource[LiquidFuel]", side="bottom", color=colors.black, test=function(v) return v <= 0 end},
+		{ksp_cmd="v.surfaceVelocity", side="bottom", color=colors.red, test=function(v) return v <= 300 end},
 	}
 }
 
