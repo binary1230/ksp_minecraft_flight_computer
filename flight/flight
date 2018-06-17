@@ -1,9 +1,22 @@
 local init_data = {}
 local callbacks = {}
 
+function check_url_valid(url)
+	local success, message = http.checkURL( url )
+	if not success then
+		print("checkURL failed: " .. message .. (string.match(message, "Domain not permitted") and "\n[probably not on ComputerCraft HTTP whitelist]" or ""))
+		return false
+	end
+	
+	return true
+end
+
 function send_ksp_http(cmd)
 	url = init_data.ksp_server .. "/telemachus/datalink?" .. cmd
 	-- print(url)
+	
+	check_url_valid(url)
+	
 	return http.request(url)
 end
 
@@ -95,7 +108,7 @@ end
 
 function poll_ksp_telemetry()
 	cmd = build_telem_query(init_data.telemetry_entries)
-	send_ksp_http(cmd)
+	-- send_ksp_http(cmd)
 end
 
 function build_telem_query(telem_entries)
@@ -218,11 +231,19 @@ function wait_for_events()
 			start_main_loop_timer()
 		end
 	elseif event == "http_success" then
+		-- print("http_success")
 		url = p1
 		handle = p2
 		response = handle.readAll()
 		handle.close()
 		process_http_response(response)
+	elseif event == "http_failure" then
+		url=p1
+		local h = fs.open("ksp_fail.log", fs.exists("ksp_fail.log") and "a" or "w")
+		h.write("http_failure: "..url.."\n")
+		-- print("http_failure: "..url)
+		-- NOTE: if hitting this, check http_whitelist and http_blacklist in computercraft.cfg, 127.0.0.1 is blocked by default
+		h.close()
 	end
 end
 
@@ -239,6 +260,14 @@ function print_peripheral_names()
 end
 
 function run()
+	if not check_url_valid(init_data.ksp_server) then
+		print(
+			"\n\n\n-------------------------------\n"..
+			"URL " .. init_data.ksp_server .. " is not valid \n(very likely you need to whitelist this on the " .. 
+			"minecraft server computercraft .cfg file.  System will probably not work until you do this."..
+			"\n-------------------------------\n")
+	end
+
 	start_main_loop_timer()
 	while (true) do
 		xpcall( wait_for_events, myerrorhandler )
